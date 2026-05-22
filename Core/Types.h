@@ -26,6 +26,7 @@ using Int = Int32;
 using UInt = UInt32;
 
 using Byte = UInt8;
+using byte = unsigned char;
 using Size = std::size_t;
 using PtrDiff = std::ptrdiff_t;
 

@@ -81,24 +81,5 @@ inline Eigen::Matrix4f Coord3(const Eigen::Vector3f& translation,
     return makeTransform(translation, rotation, scale);
 }
 
-inline Eigen::Vector3f MatrixMulPoint(const Eigen::Matrix4f& matrix,
-                                      const Eigen::Vector3f& point)
-{
-    const Eigen::Vector4f homogeneous = matrix * point.homogeneous();
-    if (std::abs(homogeneous.w()) <= Numbersf::epsilon())
-    {
-        return homogeneous.head<3>();
-    }
-
-    return homogeneous.hnormalized();
-}
-
-inline Eigen::Vector3f MatrixMulDir(const Eigen::Matrix4f& matrix,
-                                    const Eigen::Vector3f& dir)
-{
-    const Eigen::Vector3f transformed = matrix.topLeftCorner<3, 3>() * dir;
-    return transformed.normalized();
-}
-
 } // namespace Math
 } // namespace ZF

@@ -852,15 +852,47 @@ TEST(Transform, MakeAffineVariantsSetExpectedComponents)
     EXPECT_TRUE(fromQuaternionAndScale.isApprox(fromRotAndScale, 1e-5f));
 }
 
-// 验证点和方向的矩阵乘法遵循齐次坐标 W 的约定。
-TEST(Transform, MatrixMulPointAndDirRespectHomogeneousW)
+// 验证点和方向变换遵循齐次坐标 W 的约定。
+TEST(Transform, TransformPointAndDirectionRespectHomogeneousW)
 {
     const Matrix4f translation = makeTranslateMatrix4x4(10.0f, 20.0f, 30.0f);
     const Matrix4f scaling = makeScaleMatrix4x4(Vector3f(2.0f, 3.0f, 4.0f));
 
-    EXPECT_TRUE(MatrixMulPoint(translation, Vector3f(1.0f, 2.0f, 3.0f)).isApprox(Vector3f(11.0f, 22.0f, 33.0f), 1e-5f));
-    EXPECT_TRUE(MatrixMulDir(translation, Vector3f::UnitX()).isApprox(Vector3f::UnitX(), 1e-5f));
-    EXPECT_TRUE(MatrixMulDir(scaling, Vector3f(1.0f, 1.0f, 0.0f)).isApprox(Vector3f(2.0f, 3.0f, 0.0f).normalized(), 1e-5f));
+    const auto transformedPoint = transformPoint(translation, Vector3f(1.0f, 2.0f, 3.0f));
+    static_assert(std::is_same<std::decay_t<decltype(transformedPoint)>, Vector3f>{},
+                  "transformPoint(Matrix4f, Vector3f) should return Vector3f");
+
+    EXPECT_TRUE(transformedPoint.isApprox(Vector3f(11.0f, 22.0f, 33.0f), 1e-5f));
+    EXPECT_TRUE(transformDirection(translation, Vector3f::UnitX()).isApprox(Vector3f::UnitX(), 1e-5f));
+    EXPECT_TRUE(transformDirection(scaling, Vector3f(1.0f, 1.0f, 0.0f)).isApprox(Vector3f(2.0f, 3.0f, 0.0f).normalized(), 1e-5f));
+    EXPECT_TRUE(transformDirection(scaling, Vector3f::Zero()).isApprox(Vector3f::Zero(), 1e-5f));
+}
+
+// 验证点变换在齐次 W 非 1 时执行透视除法。
+TEST(Transform, TransformPointAppliesHomogeneousDivide)
+{
+    Matrix4d transform = Matrix4d::Identity();
+    transform(3, 0) = 1.0;
+
+    EXPECT_TRUE(transformPoint(transform, Vector3d(1.0, 2.0, 3.0)).isApprox(Vector3d(0.5, 1.0, 1.5), 1e-12));
+}
+
+// 验证球体变换会变换中心，并用线性部分的最大缩放更新半径。
+TEST(Transform, TransformSphereUsesTransformedCenterAndMaxScale)
+{
+    const Vector3d translation(10.0, 20.0, 30.0);
+    const Matrix3d rotation = Matrix3d::Identity();
+    const Vector3d scale(2.0, 3.0, 4.0);
+    const Matrix4d transform = makeTransform(translation, rotation, scale);
+
+    const Sphered sphere(Vector3d(1.0, 2.0, 3.0), 2.0);
+    const auto transformedSphere = transformSphere(transform, sphere);
+    static_assert(std::is_same<std::decay_t<decltype(transformedSphere)>, Sphered>{},
+                  "transformSphere(Matrix4d, Sphered) should return Sphered");
+
+    EXPECT_TRUE(transformedSphere.center().isApprox(Vector3d(12.0, 26.0, 42.0), 1e-12));
+    EXPECT_DOUBLE_EQ(transformedSphere.radius(), 8.0);
+    EXPECT_FALSE(transformSphere(Matrix4d::Identity(), Sphered()).valid());
 }
 
 // 验证按轴构造朝向的辅助函数返回请求的矩阵和四元数类型。
@@ -910,8 +942,8 @@ TEST(Transform, RotationHelpersProduceExpectedFrames)
     EXPECT_NEAR(alignX.col(0).dot(alignX.col(2)), 0.0f, 1e-5f);
 
     const Matrix4f aroundPivot = makeRotationMatrixAroundPoint(Vector3f(1.0f, 0.0f, 0.0f), Vector3f::UnitZ(), Numbersf::PI_2());
-    EXPECT_TRUE(MatrixMulPoint(aroundPivot, Vector3f(1.0f, 0.0f, 0.0f)).isApprox(Vector3f(1.0f, 0.0f, 0.0f), 1e-5f));
-    EXPECT_TRUE(MatrixMulPoint(aroundPivot, Vector3f(2.0f, 0.0f, 0.0f)).isApprox(Vector3f(1.0f, 1.0f, 0.0f), 1e-5f));
+    EXPECT_TRUE(transformPoint(aroundPivot, Vector3f(1.0f, 0.0f, 0.0f)).isApprox(Vector3f(1.0f, 0.0f, 0.0f), 1e-5f));
+    EXPECT_TRUE(transformPoint(aroundPivot, Vector3f(2.0f, 0.0f, 0.0f)).isApprox(Vector3f(1.0f, 1.0f, 0.0f), 1e-5f));
 }
 
 // 验证欧拉角辅助函数在角度、弧度、矩阵和四元数之间保持一致。

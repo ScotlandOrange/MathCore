@@ -4,6 +4,7 @@
 /// @brief Eigen 相关模板特质与 SFINAE 辅助类型。
 
 #include <array>
+#include <cstddef>
 
 #include <Eigen/Core>
 #include <type_traits>
@@ -11,6 +12,36 @@
 
 namespace ZF
 {
+/// @brief C++14 版本的 std::void_t。
+template <typename...>
+using void_t = void;
+
+/// @brief 移除引用和 cv 限定，等价于 C++20 std::remove_cvref_t。
+template <typename T>
+using uncvref_t = typename std::remove_cv<typename std::remove_reference<T>::type>::type;
+
+/// @brief C++14 remove_pointer_t 别名，保持项目内模板写法统一。
+template <typename T>
+using remove_pointer_t = typename std::remove_pointer<T>::type;
+
+/// @brief SFINAE 约束短写，默认产生 int 类型，适合作为非类型模板参数。
+template <bool Cond>
+using enable_if_t = typename std::enable_if<Cond, int>::type;
+
+/// @brief 判断 T 是否为完整类型。
+template <typename T, typename = std::size_t>
+struct is_complete : std::false_type
+{
+};
+
+template <typename T>
+struct is_complete<T, decltype(sizeof(T))> : std::true_type
+{
+};
+
+template <typename T>
+constexpr bool is_complete_v = is_complete<T>{};
+
 template <bool Cond, typename = void>
 struct static_bool
 {
@@ -60,29 +91,21 @@ using is_eigen_matrix_any = std::integral_constant<bool,
                                                    (Derived::IsVectorAtCompileTime == false) &&
                                                    std::is_arithmetic<eigen_scalar_t<Derived>>{}>;
 
-/// @brief 判断 Derived 是否为固定尺寸 3x3 Eigen 矩阵，且标量为算术类型。
+/// @brief 判断 Derived 是否为固定尺寸 3x3 Eigen 矩阵或表达式，且标量为算术类型。
 template <typename Derived>
-struct is_eigen_matrix3 : std::false_type
-{
-};
+using is_eigen_matrix3 = std::integral_constant<bool,
+                                                (Derived::IsVectorAtCompileTime == false) &&
+                                                (Derived::RowsAtCompileTime == 3) &&
+                                                (Derived::ColsAtCompileTime == 3) &&
+                                                std::is_arithmetic<eigen_scalar_t<Derived>>{}>;
 
-template <typename Scalar, int Options, int MaxRows, int MaxCols>
-struct is_eigen_matrix3<Eigen::Matrix<Scalar, 3, 3, Options, MaxRows, MaxCols>>
-    : std::integral_constant<bool, std::is_arithmetic<Scalar>{}>
-{
-};
-
-/// @brief 判断 Derived 是否为固定尺寸 4x4 Eigen 矩阵，且标量为算术类型。
+/// @brief 判断 Derived 是否为固定尺寸 4x4 Eigen 矩阵或表达式，且标量为算术类型。
 template <typename Derived>
-struct is_eigen_matrix4 : std::false_type
-{
-};
-
-template <typename Scalar, int Options, int MaxRows, int MaxCols>
-struct is_eigen_matrix4<Eigen::Matrix<Scalar, 4, 4, Options, MaxRows, MaxCols>>
-    : std::integral_constant<bool, std::is_arithmetic<Scalar>{}>
-{
-};
+using is_eigen_matrix4 = std::integral_constant<bool,
+                                                (Derived::IsVectorAtCompileTime == false) &&
+                                                (Derived::RowsAtCompileTime == 4) &&
+                                                (Derived::ColsAtCompileTime == 4) &&
+                                                std::is_arithmetic<eigen_scalar_t<Derived>>{}>;
 
 /// @brief 判断 Derived 是否为 Eigen 四元数，且标量为算术类型。
 template <typename Derived>

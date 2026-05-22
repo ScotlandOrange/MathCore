@@ -72,16 +72,11 @@ inline Eigen::Matrix<eigen_scalar_t<DQuaternion>, 4, 4>
 makeTransformFromRotAndScale(const Eigen::QuaternionBase<DQuaternion>& rotation,
                              const Eigen::MatrixBase<DScale>&          scale);
 
-// 用 4x4 矩阵变换三维点（带齐次除法）/ 方向向量（取左上 3x3 后归一化）。
+// 用 4x4 矩阵变换三维点（带齐次除法）、方向向量（取左上 3x3 后归一化）和包围球。
 // 示例：
-//   Vector3f p2 = MatrixMulPoint(M, Vector3f(1, 2, 3));
-//   Vector3f d2 = MatrixMulDir  (M, Vector3f::UnitX());
-inline Eigen::Vector3f MatrixMulPoint(const Eigen::Matrix4f& matrix,
-                                      const Eigen::Vector3f& point);
-
-inline Eigen::Vector3f MatrixMulDir(const Eigen::Matrix4f& matrix,
-                                    const Eigen::Vector3f& dir);
-
+//   Vector3f p2 = transformPoint(M, Vector3f(1, 2, 3));
+//   Vector3f d2 = transformDirection(M, Vector3f::UnitX());
+//   Sphere    s2 = transformSphere(M, sphere);
 template <typename DMatrix, typename DPoint,
           enable_if_eigen_matrix4_t<DMatrix> = 0,
           enable_if_eigen_vector_t<DPoint> = 0>
